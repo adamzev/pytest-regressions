@@ -1,12 +1,30 @@
 import difflib
+import re
+
 import pytest
 
 
 from pathlib import Path
 
 
+IGNORE_INLINE_REGEXP = re.compile(
+    # We do not care about the casing of ``ignore``
+    r"# ignore",
+    re.IGNORECASE,
+)
+
+
 def import_error_message(libname):
     return f"'{libname}' library is an optional dependency and must be installed explicitly when the fixture 'check' is used"
+
+
+def check_lines(obtained_lines, expected_lines):
+    for obtained_line, expected_line in zip(obtained_lines, expected_lines):
+        if IGNORE_INLINE_REGEXP.search(expected_line):
+            continue
+        if obtained_line != expected_line:
+            return False
+    return True
 
 
 def check_text_files(obtained_fn, expected_fn, fix_callback=lambda x: x, encoding=None):
@@ -33,7 +51,7 @@ def check_text_files(obtained_fn, expected_fn, fix_callback=lambda x: x, encodin
     obtained_lines = fix_callback(obtained_fn.read_text(encoding=encoding).splitlines())
     expected_lines = expected_fn.read_text(encoding=encoding).splitlines()
 
-    if obtained_lines != expected_lines:
+    if not check_lines(obtained_lines, expected_lines):
         diff_lines = list(
             difflib.unified_diff(expected_lines, obtained_lines, lineterm="")
         )
