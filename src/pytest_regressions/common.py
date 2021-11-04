@@ -18,13 +18,15 @@ def import_error_message(libname):
     return f"'{libname}' library is an optional dependency and must be installed explicitly when the fixture 'check' is used"
 
 
-def check_lines(obtained_lines, expected_lines):
-    for obtained_line, expected_line in zip(obtained_lines, expected_lines):
-        if IGNORE_INLINE_REGEXP.search(expected_line):
-            continue
-        if obtained_line != expected_line:
-            return False
-    return True
+def ignore_line(line):
+    return bool(IGNORE_INLINE_REGEXP.search(line))
+
+
+def filter_ignored_lines(obtained_lines, expected_lines):
+    return zip(*(
+        (obtained_line, expected_line) for obtained_line, expected_line in
+        zip(obtained_lines, expected_lines) if not ignore_line(expected_line)
+    ))
 
 
 def check_text_files(obtained_fn, expected_fn, fix_callback=lambda x: x, encoding=None):
@@ -50,8 +52,9 @@ def check_text_files(obtained_fn, expected_fn, fix_callback=lambda x: x, encodin
     expected_fn = Path(expected_fn)
     obtained_lines = fix_callback(obtained_fn.read_text(encoding=encoding).splitlines())
     expected_lines = expected_fn.read_text(encoding=encoding).splitlines()
+    obtained_lines, expected_lines = filter_ignored_lines(obtained_lines, expected_lines)
 
-    if not check_lines(obtained_lines, expected_lines):
+    if obtained_lines != expected_lines:
         diff_lines = list(
             difflib.unified_diff(expected_lines, obtained_lines, lineterm="")
         )
