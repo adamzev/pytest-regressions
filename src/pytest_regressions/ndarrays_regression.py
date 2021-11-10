@@ -348,5 +348,6 @@ class NDArraysRegressionFixture:
             basename=basename,
             fullpath=fullpath,
             force_regen=self._force_regen,
+            force_ignore=False,
             with_test_class_names=self._with_test_class_names,
         )

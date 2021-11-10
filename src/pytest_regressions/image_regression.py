@@ -164,5 +164,6 @@ class ImageRegressionFixture:
             extension=".png",
             basename=basename,
             force_regen=self.force_regen,
+            force_ignore=False,
             with_test_class_names=self.with_test_class_names,
         )

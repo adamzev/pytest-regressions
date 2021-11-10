@@ -22,11 +22,36 @@ def ignore_line(line):
     return bool(IGNORE_INLINE_REGEXP.search(line))
 
 
+def new_lines_to_ignore(obtained_lines, expected_lines):
+    result = []
+    for i, (obtained_line, expected_line) in enumerate(zip(obtained_lines, expected_lines)):
+        if not ignore_line(expected_line) and obtained_line != expected_line:
+            result.append(i)
+    return result
+
+
 def filter_ignored_lines(obtained_lines, expected_lines):
-    return zip(*(
+    result = zip(*(
         (obtained_line, expected_line) for obtained_line, expected_line in
         zip(obtained_lines, expected_lines) if not ignore_line(expected_line)
     ))
+    try:
+        filtered_obtained_lines, filtered_expected_lines = result
+        return filtered_obtained_lines, filtered_expected_lines
+    except ValueError:
+        # handle if every line is ignored
+        return [], []
+
+
+def get_diff_lines(obtained_fn, expected_fn, fix_callback=lambda x: x, encoding=None):
+    __tracebackhide__ = True
+
+    obtained_fn = Path(obtained_fn)
+    expected_fn = Path(expected_fn)
+    obtained_lines = fix_callback(obtained_fn.read_text(encoding=encoding).splitlines())
+    expected_lines = expected_fn.read_text(encoding=encoding).splitlines()
+
+    return new_lines_to_ignore(obtained_lines, expected_lines)
 
 
 def check_text_files(obtained_fn, expected_fn, fix_callback=lambda x: x, encoding=None):
@@ -97,9 +122,12 @@ def perform_regression_check(
     check_fn,
     dump_fn,
     extension,
+    ignored_line_fn=None,
+    dump_ignore_fn=None,
     basename=None,
     fullpath=None,
     force_regen=False,
+    force_ignore=False,
     with_test_class_names=False,
     obtained_filename=None,
     dump_aux_fn=lambda filename: [],
@@ -109,6 +137,7 @@ def perform_regression_check(
     match obtained files with that expected file.
 
     If expected file needs to be updated, just enable `force_regen` argument.
+    If differences should be ignored (such as differing database ids), use the `force_ignore` argument.
 
     :param Path datadir: Fixture embed_data.
     :param Path original_datadir: Fixture embed_data.
@@ -124,6 +153,7 @@ def perform_regression_check(
         3d views and plots to compare later). Must return the list of file names written (used to display).
     :param str extension: Extension of files compared by this check.
     :param bool force_regen: if true it will regenerate expected file.
+    :param bool force_ignore: if true it will modify the expected file to flag lines to ignore.
     :param bool with_test_class_names: if true it will use the test class name (if any) to compose
         the basename.
     :param str obtained_filename: complete path to use to write the obtained file. By
@@ -160,6 +190,7 @@ def perform_regression_check(
         return "\n".join(msg)
 
     force_regen = force_regen or request.config.getoption("force_regen")
+    force_ignore = force_ignore or request.config.getoption("force_ignore")
     if not filename.is_file():
         source_filename.parent.mkdir(parents=True, exist_ok=True)
         dump_fn(source_filename)
@@ -188,6 +219,17 @@ def perform_regression_check(
                 aux_created = dump_aux_fn(source_filename)
                 msg = make_location_message(
                     "Files differ and --force-regen set, regenerating file at:",
+                    source_filename,
+                    aux_created,
+                )
+                pytest.fail(msg)
+            elif force_ignore and ignored_line_fn:
+                lines_to_ignore = ignored_line_fn(obtained_filename, filename)
+                dump_ignore_fn(source_filename, lines_to_ignore)
+                aux_created = dump_aux_fn(source_filename)
+
+                msg = make_location_message(
+                    "Files differ and --force-ignore set, tagging lines to ignore at:",
                     source_filename,
                     aux_created,
                 )

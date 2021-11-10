@@ -23,6 +23,7 @@ class DataFrameRegressionFixture:
         self.datadir = datadir
         self.original_datadir = original_datadir
         self._force_regen = False
+        self._force_ignore = False
         self._with_test_class_names = False
 
         self._pandas_display_options = (
@@ -258,5 +259,6 @@ class DataFrameRegressionFixture:
                 basename=basename,
                 fullpath=fullpath,
                 force_regen=self._force_regen,
+                force_ignore=False,
                 with_test_class_names=self._with_test_class_names,
             )

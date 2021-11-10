@@ -2,7 +2,7 @@ from functools import partial
 
 import yaml
 
-from pytest_regressions.common import Path, check_text_files, perform_regression_check
+from pytest_regressions.common import Path, check_text_files, get_diff_lines, perform_regression_check
 
 
 class DataRegressionFixture:
@@ -20,6 +20,7 @@ class DataRegressionFixture:
         self.datadir = datadir
         self.original_datadir = original_datadir
         self.force_regen = False
+        self.force_ignore = False
         self.with_test_class_names = False
 
     def check(self, data_dict, basename=None, fullpath=None):
@@ -55,16 +56,33 @@ class DataRegressionFixture:
             with filename.open("wb") as f:
                 f.write(dumped_str)
 
+        def dump_ignore(source_filename, lines_to_ignore):
+            file_lines = []
+            with source_filename.open('r') as f:
+                for i, x in enumerate(f.readlines()):
+                    if i in lines_to_ignore:
+                        file_lines.append(
+                            ''.join([x.strip(), " # ignore", '\n'])
+                        )
+                    else:
+                        file_lines.append(x)
+
+            with source_filename.open('w') as f:
+                f.writelines(file_lines)
+
         perform_regression_check(
             datadir=self.datadir,
             original_datadir=self.original_datadir,
             request=self.request,
             check_fn=partial(check_text_files, encoding="UTF-8"),
             dump_fn=dump,
+            ignored_line_fn=get_diff_lines,
+            dump_ignore_fn=dump_ignore,
             extension=".yml",
             basename=basename,
             fullpath=fullpath,
             force_regen=self.force_regen,
+            force_ignore=self.force_ignore,
             with_test_class_names=self.with_test_class_names,
         )
 

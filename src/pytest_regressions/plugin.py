@@ -10,6 +10,12 @@ def pytest_addoption(parser):
         help="Re-generate all data_regression fixture data files.",
     )
     group.addoption(
+        "--force-ignore",
+        action="store_true",
+        default=False,
+        help="Ignore all current differences and modify the fixture data files to label the same lines to ignore in the future.",
+    )
+    group.addoption(
         "--with-test-class-names",
         action="store_true",
         default=False,
